@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+target/
+dist/
+build/
+
+# Local data / DuckDB
+*.duckdb
+*.db
+data/
+
+# Env
+.env
+.env.local
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
