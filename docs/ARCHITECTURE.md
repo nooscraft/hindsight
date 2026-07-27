@@ -16,7 +16,7 @@ crates/
   hindsight-cli      binary `hindsight`: human commands + ingestion
 ```
 
-`hindsight-core` holds all the logic. The binaries are thin surfaces over it: MCP over stdio for a local agent, a long-running server that exposes the same core over HTTP and WebSocket, and a CLI for the terminal. All of them call the same model-free core. The Portal is a separate application ([its own repo](https://github.com/nooscraft/-hindsight-portal), Python/FastAPI) that talks to `hindsight-server`.
+`hindsight-core` holds all the logic. The binaries are thin surfaces over it: MCP over stdio for a local agent, a long-running server that exposes the same core over HTTP and WebSocket, and a CLI for the terminal. All of them call the same model-free core. The Portal is a separate application ([its own repo](https://github.com/nooscraft/hindsight-portal), Python/FastAPI) that talks to `hindsight-server`.
 
 ## Running Hindsight and where data lives
 
@@ -164,7 +164,7 @@ Logs matter most while something is happening: a deploy, an incident, a request 
 
 The CLI serves terminals and MCP serves agents. The Portal is the human window into a running Hindsight: a live tail, an audit of what agents did, and a look at how healthy ingestion is.
 
-It lives in its own repo and is built with Python and FastAPI, separate from the Rust core: https://github.com/nooscraft/-hindsight-portal
+It lives in its own repo and is built with Python and FastAPI, separate from the Rust core: https://github.com/nooscraft/hindsight-portal
 
 It covers the things a person still wants their own eyes on:
 
@@ -198,7 +198,7 @@ Either way, Hindsight is a deterministic validator, compiler, and executor. The 
 **v1**
 
 - `hindsight-server`: HTTP/SSE MCP transport, WebSocket live tail, query API
-- the Portal ([separate repo](https://github.com/nooscraft/-hindsight-portal), Python/FastAPI): live tail view, echo-back audit, source and ingest health, ad-hoc views
+- the Portal ([separate repo](https://github.com/nooscraft/hindsight-portal), Python/FastAPI): live tail view, echo-back audit, source and ingest health, ad-hoc views
 - k8s parser with label extraction
 - `hindsight ask` built-in NL
 - saved queries and named views
