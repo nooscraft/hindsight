@@ -13,9 +13,11 @@ pub mod store {
     //! Owns the DuckDB connection and the `log_events` schema.
 }
 
-/// Read-only SQL execution with row/byte caps and a statement timeout.
+/// Validate query intents, compile them to SQL, and run them read-only.
 pub mod query {
-    //! Enforces `SELECT`-only access so agent-written SQL stays safe.
+    //! Agents send a structured query intent, not SQL. This module validates
+    //! it against the live schema, compiles it to a `SELECT` (read-only by
+    //! construction), and executes it with row/byte caps and a timeout.
 }
 
 /// Resolve the local `.hindsight` data directory and load `config.toml`.

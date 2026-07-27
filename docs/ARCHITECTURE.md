@@ -81,15 +81,54 @@ A parser turns a raw line into an event. v0 targets:
 
 `format = "auto"` sniffs the first N lines and picks a parser.
 
-## Query and safety
+## The query intent
 
-All agent access to data is read-only. The query layer:
+Agents don't send SQL. They send a structured **query intent** against a closed vocabulary, and Hindsight compiles it. This keeps the physical schema and the SQL dialect out of the agent's hands. Swap DuckDB for something else later and no agent breaks.
 
-- accepts a single SQL statement, parses it, and rejects anything that isn't a `SELECT` (no DDL, DML, `PRAGMA`, `ATTACH`, `COPY`, or file functions)
+An intent for "which clients got the most 500s from nginx yesterday":
+
+```json
+{
+  "source": "nginx",
+  "metric": { "count": "*", "as": "errors" },
+  "where": [{ "field": "status", "op": "gte", "value": 500 }],
+  "group_by": ["client_ip"],
+  "order_by": { "field": "errors", "dir": "desc" },
+  "time": "yesterday",
+  "limit": 4
+}
+```
+
+The vocabulary:
+
+- `source` — one of the registered sources
+- `select` / `metric` — fields to return and aggregates (`count`, `sum`, `avg`, `min`, `max`)
+- `where` — a list of `{ field, op, value }`; `op` is a fixed set (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `exists`)
+- `group_by` — field names
+- `order_by` — `{ field, dir }`
+- `time` — a named range (`today`, `yesterday`, `last_1h`, `last_24h`, `last_7d`) or explicit `{ since, until }`
+- `limit` — capped by the server
+
+A `field` is a column from the data model or a key inside `fields`, which the agent learned from `describe()`.
+
+### Why this stays accurate
+
+The intent is the only place natural language turns into structure, and it's small and closed, so Hindsight checks it before running anything.
+
+- **Validation.** `source` must exist. Every `field` must appear in `describe()`. Operators, aggregates, and named time ranges are enums. Anything unresolved is rejected with the valid options (`unknown field 'stattus'; available: status, client_ip, request_time`) and the agent retries. A hallucinated field never reaches the database.
+- **Deterministic compilation.** intent → SQL is code with a fixed mapping and a regression suite, so there's no per-query variance. Hindsight resolves the time range itself, which means the "yesterday accidentally includes today" class of bug can't happen.
+- **Echo-back.** Every response restates what actually ran in plain language ("counted nginx rows where status >= 500, grouped by client_ip, 2026-07-26 00:00 to 2026-07-27 00:00") so the agent and the user can confirm the reading.
+
+What this does not guarantee: that the agent's reading matches what the human meant. That ambiguity is irreducible with natural-language input. The contract makes it visible and correctable instead of burying it inside a SQL string.
+
+### Safety
+
+Read-only is now a property of the compiler, not something enforced by rejecting bad SQL. The compiler only ever emits a `SELECT`, so there's no DDL, DML, `ATTACH`, `COPY`, or file-function surface in the first place. On top of that the executor:
+
 - runs against DuckDB with a statement timeout
 - caps result rows and total bytes, and reports truncation in the response
 
-In agent-first mode the model writes the SQL. The core treats that SQL as untrusted and constrains it rather than trusting the caller.
+Because the agent never sends raw SQL, there's nothing to sanitize. `where` values are bound as parameters, not interpolated into a string.
 
 ## The agent surface
 
@@ -97,21 +136,20 @@ In agent-first mode the model writes the SQL. The core treats that SQL as untrus
 
 - `list_sources()` — each source with row count and time range
 - `describe(source?)` — columns, detected `fields` keys with inferred types, and a few sample values per field
-- `query(sql)` — run a read-only `SELECT`; returns rows plus a `truncated` flag
-- `search(source?, text, since?, until?, level?)` — builds the `SELECT` for common lookups
+- `query(intent)` — run a validated query intent; returns rows, an echo of what ran, and a `truncated` flag
 - `stats(source, field)` — cardinality and top values for a field
 - `sample(source, n)` — n recent rows
 
-Normal agent loop: `list_sources` to see what's here, `describe` to learn the shape, then `query` or `search` to answer the question. Because the schema is discoverable, the agent writes correct SQL without anything being hard-coded.
+Normal agent loop: `list_sources` to see what's here, `describe` to learn the shape, then build a query intent and call `query`. The agent works in domain terms, sources and field names, and never touches SQL or the physical schema.
 
 ## Where the natural language lives
 
-Two ways to ask a question in plain English:
+An LLM is always in the loop, because something has to understand English. The design keeps it on the caller's side. Hindsight itself runs no model.
 
-1. **Agent-first (primary).** An external agent (Grok, Claude, whatever the user runs) connects to `hindsight-mcp` and drives the tools. Hindsight ships no model and holds no API key.
-2. **Built-in NL (optional).** `hindsight ask "..."` with a user-supplied API key runs the discover → generate SQL → execute loop in-process, for people who just want a CLI.
+1. **Agent-first (primary).** An external agent (Grok, Claude, whatever the user runs) reads the user's English and emits query intents to `hindsight-mcp`. It's the only LLM involved. Hindsight validates, compiles, executes, and echoes back. It ships no model and holds no API key.
+2. **Built-in ask (optional).** `hindsight ask "..."` uses your API key to run an in-process agent that emits the same intents, for people who just want a CLI. The core is unchanged and still model-free.
 
-The core is identical either way. Built-in NL is an in-process agent using the same tools, under the same read-only guarantees.
+Either way, Hindsight is a deterministic validator, compiler, and executor. The English → intent step is the model's job, on the caller's side.
 
 ## Roadmap
 
@@ -119,8 +157,8 @@ The core is identical either way. Built-in NL is an in-process agent using the s
 
 - workspace, config, and data-dir resolution
 - json / nginx / syslog / plaintext parsers with incremental ingest
-- DuckDB store and read-only query layer with caps
-- MCP server with `list_sources` / `describe` / `query` / `search`
+- DuckDB store and the intent compiler (validation, deterministic compilation, read-only execution with caps)
+- MCP server with `list_sources` / `describe` / `query(intent)` / `stats`
 - `hindsight ingest` and `hindsight query`
 
 **Later**
