@@ -175,6 +175,30 @@ It covers the things a person still wants their own eyes on:
 
 It's deliberately not part of the core. The Rust side exposes an HTTP and WebSocket API through `hindsight-server`, and the Portal is a client of that API. It holds no logs, runs no model, and reuses the query intent contract and the live subscriptions, so it stays a thin surface rather than a second implementation. Python/FastAPI lets the UI move at its own pace without touching the Rust core, and it keeps the agent-first story intact: the Portal is where a human watches live logs and audits what agents did, not a way back to grepping history by hand.
 
+## Trust and auth boundary
+
+Hindsight has three kinds of caller, and they don't get the same trust.
+
+- **Local stdio (`hindsight-mcp`, `hindsight-cli`).** These run as a user on the same machine as the store. Whoever can execute the binary already has the logs, so there's nothing to gate. No tokens.
+- **Network (`hindsight-server`).** Every request is authenticated. Read-only-by-construction still holds, but on a network you also need to know who's asking. The open-source server ships simple token auth: tokens live in config or the environment and can be scoped to specific sources.
+- **The Portal.** Just another authenticated client of `hindsight-server`. It holds no special privilege.
+
+The core validates identity; it does not manage users. That split is deliberate, and it's where the optional control plane plugs in. Raw logs stay in the data plane no matter what.
+
+```
+  control plane (optional, hosted)          data plane (always the customer's)
+  ┌────────────────────────────┐            ┌───────────────────────────────┐
+  │ identity, orgs, RBAC, SSO  │  config →  │  hindsight-server + DuckDB    │
+  │ fleet view, audit, billing │  ← health, │  raw logs, never leave here   │
+  └────────────────────────────┘   metadata └───────────────────────────────┘
+                                    results
+```
+
+- **Self-hosted (open source):** you set tokens yourself. No control plane, no third party.
+- **Managed control plane (paid, optional):** it issues and rotates tokens, maps them to orgs and roles, and the server validates them (a signed token it can check on its own, like a JWT). Enrollment is one-time: a server registers with an enrollment token, gets a signed identity, and then shows up in the fleet.
+
+What crosses the boundary is fixed: policy and config down, health and metadata and explicitly-requested query results up. The control plane can say "this user may query the nginx source," but it never receives the nginx logs. See [MONETIZATION.md](MONETIZATION.md) for how this boundary maps to the business model.
+
 ## Where the natural language lives
 
 An LLM is always in the loop, because something has to understand English. The design keeps it on the caller's side. Hindsight itself runs no model.

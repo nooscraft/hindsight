@@ -21,6 +21,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
 
 The **Portal** (web UI) lives in a separate repo, built with Python/FastAPI: [nooscraft/hindsight-portal](https://github.com/nooscraft/hindsight-portal). It talks to `hindsight-server` over HTTP and WebSocket.
 
+## How it's funded
+
+Open source and self-hosted by default. An optional managed control plane and team features are the paid layer, and your logs never leave your environment either way. See [docs/MONETIZATION.md](docs/MONETIZATION.md).
+
 ## Status
 
 Early development. The repo is a scaffold; see the roadmap in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
