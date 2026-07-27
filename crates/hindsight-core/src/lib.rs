@@ -6,6 +6,14 @@
 /// Parse raw log streams into normalized events.
 pub mod ingest {
     //! Format detection and parsers: json, nginx, syslog, k8s, plaintext.
+    //! Runs on demand (`hindsight ingest`) or continuously (follow mode).
+}
+
+/// Live event fan-out for follow mode.
+pub mod stream {
+    //! Follow workers publish parsed events to a broadcast bus. Live viewers
+    //! (the Portal, or an agent) subscribe with a filter and receive matching
+    //! events as they arrive, without waiting on the store.
 }
 
 /// Embedded DuckDB store for parsed events.

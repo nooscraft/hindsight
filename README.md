@@ -2,7 +2,7 @@
 
 Agent-first log analysis. Hindsight gives AI agents a small, read-only tool surface to discover, inspect, and query your logs, so an agent can assess what happened without a human ever opening a log file.
 
-It parses logs in any format (JSON, nginx, syslog, k8s) into a DuckDB store and runs wherever your logs already live: a host, a container, your cluster, or as a hosted service in your own environment. Cloud-native, with no forced egress of raw logs.
+It parses logs in any format (JSON, nginx, syslog, k8s) into a DuckDB store, follows them live, and runs wherever your logs already live: a host, a container, your cluster, or as a hosted service in your own environment. Cloud-native, with no forced egress of raw logs. A Portal gives a human a live tail and an audit of what agents actually ran.
 
 ## Design
 
@@ -14,9 +14,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
 
 ## Workspace
 
-- `crates/hindsight-core` — ingestion, storage, query engine
-- `crates/hindsight-mcp` — MCP server, the agent-facing surface
+- `crates/hindsight-core` — ingestion (with follow/live tail), storage, query intent engine
+- `crates/hindsight-mcp` — MCP server over stdio, for local agents
+- `crates/hindsight-server` — long-running service: Portal, live tail, HTTP MCP, query API
 - `crates/hindsight-cli` — the `hindsight` binary for humans
+- `portal/` — web UI served by `hindsight-server`
 
 ## Status
 

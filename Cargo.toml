@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/hindsight-core",
     "crates/hindsight-mcp",
+    "crates/hindsight-server",
     "crates/hindsight-cli",
 ]
 

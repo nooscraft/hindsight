@@ -10,12 +10,14 @@ Three decisions drive everything below.
 
 ```
 crates/
-  hindsight-core   library: ingest + store + query
-  hindsight-mcp    binary:  MCP server, the agent surface
-  hindsight-cli    binary `hindsight`: human commands + ingestion
+  hindsight-core     library: ingest (+ follow) + store + query intent + stream
+  hindsight-mcp      binary:  MCP server over stdio, for local agents
+  hindsight-server   binary:  long-running service: Portal, live tail, HTTP MCP, query API
+  hindsight-cli      binary `hindsight`: human commands + ingestion
+portal/              web UI served by hindsight-server
 ```
 
-`hindsight-core` holds all the logic. The two binaries are thin: one speaks MCP to agents, the other speaks to a person at a terminal. Both call the same core.
+`hindsight-core` holds all the logic. The binaries are thin surfaces over it: MCP over stdio for a local agent, a long-running server for hosted use (agents plus a human at the Portal), and a CLI for the terminal. All of them call the same model-free core.
 
 ## Running Hindsight and where data lives
 
@@ -81,6 +83,15 @@ A parser turns a raw line into an event. v0 targets:
 
 `format = "auto"` sniffs the first N lines and picks a parser.
 
+### When ingestion happens
+
+Ingestion is decoupled from querying. A query never triggers a read of the source files; it only reads what's already in the store. That keeps queries fast and read-only, and it means freshness depends on how the store is being fed:
+
+- **On demand (batch).** `hindsight ingest` reads new lines from registered sources and stops. The store is as fresh as the last run. Good for one-off analysis or a cron.
+- **Continuous (follow).** `hindsight-server` (or `hindsight tail`) runs a follow worker that ingests as lines arrive, so the store stays near real time and live subscribers see events immediately.
+
+Both use the same incremental offsets, so switching between them doesn't re-read or duplicate anything. If you need a query to reflect the absolute latest and you're in batch mode, run `hindsight ingest` first; in follow mode it's already current.
+
 ## The query intent
 
 Agents don't send SQL. They send a structured **query intent** against a closed vocabulary, and Hindsight compiles it. This keeps the physical schema and the SQL dialect out of the agent's hands. Swap DuckDB for something else later and no agent breaks.
@@ -142,6 +153,27 @@ Because the agent never sends raw SQL, there's nothing to sanitize. `where` valu
 
 Normal agent loop: `list_sources` to see what's here, `describe` to learn the shape, then build a query intent and call `query`. The agent works in domain terms, sources and field names, and never touches SQL or the physical schema.
 
+## Live streaming
+
+Logs matter most while something is happening: a deploy, an incident, a request that's stuck. Hindsight follows sources as they're written and pushes new events to whoever is watching.
+
+- **Follow.** The ingest layer can tail a source, watching for new lines by offset and inode, and parse each one through the same path as batch ingest. Nothing about the parser changes; it's the trigger that's different.
+- **Fan-out.** A follow worker does two things with each new event. It batch-writes it to DuckDB for history, and publishes it immediately to an in-process broadcast bus for live viewers. The live path is fed by the bus, so it doesn't wait on the database. DuckDB gets writes in small batches (every N lines or N milliseconds) because it's built for analytical queries, not a write per line.
+- **Subscriptions.** A live subscriber sends a filter, the same vocabulary as a query intent minus the aggregation (`source`, `where`, `level`, text match), and gets matching events pushed as they arrive. The Portal uses this for a live tail. An agent can use it too, to watch for a condition rather than poll.
+
+## The Portal
+
+The CLI serves terminals and MCP serves agents. The Portal is the human window into a running Hindsight, served by `hindsight-server` over HTTP.
+
+It covers the things a person still wants their own eyes on:
+
+- a **live tail** with filters (source, level, text), backed by the subscriptions above
+- the **echo-backs**: what agents actually ran, so a human can see and trust the query behind an answer
+- **source and ingest health**: what's registered, row counts, time ranges, how far behind a follow is
+- an **ad-hoc view** for poking at something without an agent in the loop
+
+The Portal is a small web frontend (assets under `portal/`) that talks to the same core over HTTP and WebSocket. It runs no model of its own, and it reuses the query intent contract and the live subscriptions, so it's a thin surface rather than a second implementation. This keeps the agent-first story intact: the Portal is where a human watches live logs and audits what agents did, not a way back to grepping history by hand.
+
 ## Where the natural language lives
 
 An LLM is always in the loop, because something has to understand English. The design keeps it on the caller's side. Hindsight itself runs no model.
@@ -156,15 +188,16 @@ Either way, Hindsight is a deterministic validator, compiler, and executor. The 
 **v0**
 
 - workspace, config, and data-dir resolution
-- json / nginx / syslog / plaintext parsers with incremental ingest
+- json / nginx / syslog / plaintext parsers with incremental ingest and follow mode
 - DuckDB store and the intent compiler (validation, deterministic compilation, read-only execution with caps)
-- MCP server with `list_sources` / `describe` / `query(intent)` / `stats`
-- `hindsight ingest` and `hindsight query`
+- MCP server (stdio) with `list_sources` / `describe` / `query(intent)` / `stats`
+- in-process live tail via the broadcast bus, surfaced by `hindsight tail`
+- `hindsight ingest`, `hindsight query`, `hindsight tail`
 
-**Later**
+**v1**
 
-- live tailing and a follow mode
+- `hindsight-server`: HTTP/SSE MCP transport, WebSocket live tail, query API
+- the Portal: live tail view, echo-back audit, source and ingest health, ad-hoc views
 - k8s parser with label extraction
 - `hindsight ask` built-in NL
-- HTTP/SSE transport for the MCP server
 - saved queries and named views
