@@ -2,9 +2,9 @@
 
 Three decisions drive everything below.
 
-1. **Rust core.** Ingestion, storage, and query live in a Rust workspace. It ships as a single binary with no runtime or interpreter.
-2. **Local-first.** Logs are parsed and stored on the user's machine in an embedded DuckDB file. Nothing leaves the machine unless the user explicitly connects an external agent.
-3. **Agent-first.** The primary interface is a tool surface an AI agent connects to, not a chat box or a dashboard. An agent can discover what logs exist, read their shape, and run queries through a few well-defined calls.
+1. **Agent-first.** The primary interface is a tool surface an AI agent connects to, not a chat box or a dashboard. An agent discovers what logs exist, reads their shape, and runs queries through a few well-defined calls. Every other choice serves this one.
+2. **Rust core.** Ingestion, storage, and query live in a Rust workspace. It ships as a single binary with no runtime or interpreter.
+3. **Local.** Hindsight runs where your logs already are and queries them in place, so raw logs stay inside your trust boundary. The same binary is cloud-native: run it as a service in your own environment. This is a trust and cost property, not an offline one. An agent reads every line of your logs, and none of it has to leave your perimeter for it to do that.
 
 ## Workspace layout
 
@@ -17,9 +17,9 @@ crates/
 
 `hindsight-core` holds all the logic. The two binaries are thin: one speaks MCP to agents, the other speaks to a person at a terminal. Both call the same core.
 
-## How local works
+## Running Hindsight and where data lives
 
-Data lives under a single directory, resolved in this order:
+Hindsight runs as a single binary, either on a machine sitting next to your logs or as a long-running service in your own environment. Either way, data lives under a single directory, resolved in this order:
 
 1. `HINDSIGHT_HOME` if set
 2. a project-local `./.hindsight/` found by walking up from the current directory

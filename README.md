@@ -1,14 +1,14 @@
 # Hindsight
 
-Natural-language log analyzer. Local-first, agent-first: point an AI agent at your logs and let it discover, inspect, and query them without anything leaving your machine.
+Agent-first log analysis. Hindsight gives AI agents a small, read-only tool surface to discover, inspect, and query your logs, so an agent can assess what happened without a human ever opening a log file.
 
-Hindsight parses logs in any format (JSON, nginx, syslog, k8s) into an embedded DuckDB store on your machine. An AI agent connects over MCP and gets a small set of read-only tools to assess what happened. No cloud, no data egress, no model shipped inside.
+It parses logs in any format (JSON, nginx, syslog, k8s) into a DuckDB store and runs wherever your logs already live: a host, a container, your cluster, or as a hosted service in your own environment. Cloud-native, with no forced egress of raw logs.
 
 ## Design
 
+- **Agent-first.** The primary interface is an MCP tool surface for AI agents, not a dashboard. An agent discovers sources, reads their shape, and runs read-only queries. Every other choice serves this one.
 - **Rust core.** Ingestion, storage, and query are a Rust workspace that ships as a single binary.
-- **Local-first.** Everything runs and stays on your machine. The store is an embedded DuckDB file.
-- **Agent-first.** The primary interface is a tool surface for AI agents, not a dashboard. An agent discovers sources, reads their shape, and runs read-only queries.
+- **Local.** Hindsight runs next to your logs and queries them in place, so raw logs stay inside your trust boundary instead of being shipped to a third party. It's cloud-native too: deploy the same binary as a service in your own environment. The point isn't running offline, it's that your logs (and the secrets that leak into them) don't leave your perimeter just because an agent is reading them.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
 
