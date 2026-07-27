@@ -1,0 +1,14 @@
+[package]
+name = "hindsight-cli"
+description = "The hindsight command-line tool: ingest and query logs."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "hindsight"
+path = "src/main.rs"
+
+[dependencies]
+hindsight-core = { path = "../hindsight-core" }

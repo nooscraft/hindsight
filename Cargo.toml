@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/hindsight-core",
+    "crates/hindsight-mcp",
+    "crates/hindsight-cli",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/nooscraft/hindsight"
+
+[workspace.dependencies]
+# Shared dependencies get pinned here as the crates grow.
+# Planned: duckdb, sqlparser, serde, serde_json, tokio.

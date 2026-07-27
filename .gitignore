@@ -8,6 +8,10 @@ build/
 *.duckdb
 *.db
 data/
+.hindsight/
+
+# Rust
+Cargo.lock
 
 # Env
 .env

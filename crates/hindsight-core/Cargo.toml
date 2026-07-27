@@ -1,0 +1,9 @@
+[package]
+name = "hindsight-core"
+description = "Core ingestion, storage, and query engine for Hindsight."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
