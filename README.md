@@ -16,9 +16,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
 
 - `crates/hindsight-core` — ingestion (with follow/live tail), storage, query intent engine
 - `crates/hindsight-mcp` — MCP server over stdio, for local agents
-- `crates/hindsight-server` — long-running service: Portal, live tail, HTTP MCP, query API
+- `crates/hindsight-server` — long-running service: HTTP MCP, WebSocket live tail, query API
 - `crates/hindsight-cli` — the `hindsight` binary for humans
-- `portal/` — web UI served by `hindsight-server`
+
+The **Portal** (web UI) lives in a separate repo, built with Python/FastAPI: [nooscraft/-hindsight-portal](https://github.com/nooscraft/-hindsight-portal). It talks to `hindsight-server` over HTTP and WebSocket.
 
 ## Status
 

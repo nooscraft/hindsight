@@ -1,6 +1,6 @@
 [package]
 name = "hindsight-server"
-description = "Long-running Hindsight service: Portal, live tail, HTTP MCP transport, and query API."
+description = "Long-running Hindsight service: HTTP/SSE MCP transport, WebSocket live tail, and query API."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -12,12 +12,11 @@ Three decisions drive everything below.
 crates/
   hindsight-core     library: ingest (+ follow) + store + query intent + stream
   hindsight-mcp      binary:  MCP server over stdio, for local agents
-  hindsight-server   binary:  long-running service: Portal, live tail, HTTP MCP, query API
+  hindsight-server   binary:  long-running service: HTTP/SSE MCP, WebSocket live tail, query API
   hindsight-cli      binary `hindsight`: human commands + ingestion
-portal/              web UI served by hindsight-server
 ```
 
-`hindsight-core` holds all the logic. The binaries are thin surfaces over it: MCP over stdio for a local agent, a long-running server for hosted use (agents plus a human at the Portal), and a CLI for the terminal. All of them call the same model-free core.
+`hindsight-core` holds all the logic. The binaries are thin surfaces over it: MCP over stdio for a local agent, a long-running server that exposes the same core over HTTP and WebSocket, and a CLI for the terminal. All of them call the same model-free core. The Portal is a separate application ([its own repo](https://github.com/nooscraft/-hindsight-portal), Python/FastAPI) that talks to `hindsight-server`.
 
 ## Running Hindsight and where data lives
 
@@ -163,16 +162,18 @@ Logs matter most while something is happening: a deploy, an incident, a request 
 
 ## The Portal
 
-The CLI serves terminals and MCP serves agents. The Portal is the human window into a running Hindsight, served by `hindsight-server` over HTTP.
+The CLI serves terminals and MCP serves agents. The Portal is the human window into a running Hindsight: a live tail, an audit of what agents did, and a look at how healthy ingestion is.
+
+It lives in its own repo and is built with Python and FastAPI, separate from the Rust core: https://github.com/nooscraft/-hindsight-portal
 
 It covers the things a person still wants their own eyes on:
 
-- a **live tail** with filters (source, level, text), backed by the subscriptions above
+- a **live tail** with filters (source, level, text), backed by the WebSocket subscriptions
 - the **echo-backs**: what agents actually ran, so a human can see and trust the query behind an answer
 - **source and ingest health**: what's registered, row counts, time ranges, how far behind a follow is
 - an **ad-hoc view** for poking at something without an agent in the loop
 
-The Portal is a small web frontend (assets under `portal/`) that talks to the same core over HTTP and WebSocket. It runs no model of its own, and it reuses the query intent contract and the live subscriptions, so it's a thin surface rather than a second implementation. This keeps the agent-first story intact: the Portal is where a human watches live logs and audits what agents did, not a way back to grepping history by hand.
+It's deliberately not part of the core. The Rust side exposes an HTTP and WebSocket API through `hindsight-server`, and the Portal is a client of that API. It holds no logs, runs no model, and reuses the query intent contract and the live subscriptions, so it stays a thin surface rather than a second implementation. Python/FastAPI lets the UI move at its own pace without touching the Rust core, and it keeps the agent-first story intact: the Portal is where a human watches live logs and audits what agents did, not a way back to grepping history by hand.
 
 ## Where the natural language lives
 
@@ -197,7 +198,7 @@ Either way, Hindsight is a deterministic validator, compiler, and executor. The 
 **v1**
 
 - `hindsight-server`: HTTP/SSE MCP transport, WebSocket live tail, query API
-- the Portal: live tail view, echo-back audit, source and ingest health, ad-hoc views
+- the Portal ([separate repo](https://github.com/nooscraft/-hindsight-portal), Python/FastAPI): live tail view, echo-back audit, source and ingest health, ad-hoc views
 - k8s parser with label extraction
 - `hindsight ask` built-in NL
 - saved queries and named views

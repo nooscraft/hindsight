@@ -1,8 +1,8 @@
 //! Hindsight server: the long-running service.
 //!
-//! Hosts the Portal (web UI), a WebSocket live-tail endpoint, the HTTP/SSE MCP
-//! transport, and the query API. Every surface calls the same model-free core.
-//! Scaffold only.
+//! Exposes the core over the network: a WebSocket live-tail endpoint, the
+//! HTTP/SSE MCP transport, and the query API. This is the API the Portal
+//! (a separate Python/FastAPI app) and remote agents consume. Scaffold only.
 
 fn main() {
     eprintln!("hindsight-server: not yet implemented. See docs/ARCHITECTURE.md");
